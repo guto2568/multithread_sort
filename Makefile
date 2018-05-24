@@ -1,10 +1,10 @@
 # Macros para compilacao
 CC = gcc
-CFLAGS = -Wextra
+CFLAGS = -Wextra -pthread
 DIR = src
 FILENAME = $(DIR)/main.c
 TARGET = ./main
-SRCS := $(shell find $(DIR) -name '*.cpp')
+SRCS := $(shell find $(DIR) -name '*.c')
 OBJS = $(SRCS:.c=.o)
 
 
