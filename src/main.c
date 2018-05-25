@@ -10,8 +10,8 @@
 #include <pthread.h>
 
 #define MAX 10000000
-/*NUmero maximo de threads permitidas (excluindo a principal*/
-#define MAX_THREADS 0
+/*NUmero maximo de threads permitidas (excluindo a principa)l*/
+#define MAX_THREADS 2
 
 typedef struct{
   int ini;
@@ -43,7 +43,7 @@ void troca(int *a, int *b){
   *b = aux;
 }
 
-/*Particiona vetor*/
+/*Particiona vetor (modelo quicksort)*/
 int particiona(int ini, int fim){
   /*Randomiza vetor*/
   int j, i = rand()%(fim - ini + 1) + ini;
@@ -63,9 +63,7 @@ int particiona(int ini, int fim){
 
 /*Realiza quicksort no vetor, entre as posições ini e fim, gerando threads se possivel para dividir recursão*/
 void quicksort(argumento *args){
-  argumento *new_args1, *new_args2;
-  new_args1 = (argumento*)malloc(sizeof(argumento));
-  new_args2 = (argumento*)malloc(sizeof(argumento));
+  argumento new_args1, new_args2;
   
   int ind_thread;
   
@@ -73,54 +71,51 @@ void quicksort(argumento *args){
   int divide = 0;
   
   if(args->ini < args->fim){
-    int pivo = particiona(args->ini, args->fim);
-    
-    /*Decide se divide em duas threads ou não*/
-    pthread_mutex_lock(&trava);
-    if(n_threads_disponiveis > 0){
-      /*desempilha valor da pilha de threads disponiveis*/
-      ind_thread = threads_disponiveis[n_threads_disponiveis - 1];
-      n_threads_disponiveis--;
-      divide = 1;
-    }
-
-    pthread_mutex_unlock(&trava);
+     int pivo = particiona(args->ini, args->fim);
+     
+     /*Decide se divide em duas threads ou não*/
+     pthread_mutex_lock(&trava);
+     if(n_threads_disponiveis > 0){
+       /*desempilha valor da pilha de threads disponiveis*/
+       ind_thread = threads_disponiveis[n_threads_disponiveis - 1];
+       n_threads_disponiveis--;
+       divide = 1;
+     }
+ 
+     pthread_mutex_unlock(&trava);
     
     /*Se for possível dividir sem exeder numero de thrads, a thread atual executa uma instancia da recursao e cria uma cria outra thread para a outra instância*/
-    if(divide){
-      new_args1->ini = args->ini;
-      new_args1->fim = pivo - 1; 
-      pthread_create(&(threads[ind_thread]), NULL, quicksort, new_args1);
-      new_args2->ini = pivo + 1;
-      new_args2->fim = args->fim;
-      quicksort(new_args2);
-    }
+     if(divide){
+        new_args1.ini = args->ini;
+        new_args1.fim = pivo - 1; 
+        pthread_create(&(threads[ind_thread]), NULL, quicksort, &new_args1);
+        
+        new_args2.ini = pivo + 1;
+        new_args2.fim = args->fim;
+        quicksort(&new_args2);
+      }
     
-    /*Caso contrario, thread atual executa as duas instancias*/
-    else{
-      new_args1->ini = args->ini;
-      new_args1->fim = pivo - 1;
-      quicksort(new_args1);
-      new_args2->ini = pivo + 1;
-      new_args2->fim = args->fim;
-      quicksort(new_args2);
-    }
+      /*Caso contrario, thread atual executa as duas instancias*/
+      else{
+	new_args1.ini = args->ini;
+	new_args1.fim = pivo - 1;
+	quicksort(&new_args1);
+      
+	new_args2.ini = pivo + 1;
+	new_args2.fim = args->fim;
+	quicksort(&new_args2);
+      }
   }
   
-  
-  
-  if(divide){
-    /*Espera filho terminar*/
-    pthread_join(threads[ind_thread], NULL);
-    /*Retorna indice para a pilha*/
-    pthread_mutex_lock(&trava);
-    threads_disponiveis[n_threads_disponiveis] = ind_thread;
-    n_threads_disponiveis++;
-    pthread_mutex_unlock(&trava);
-  }
-  
-  free(new_args1);
-  free(new_args2);
+     if(divide){
+       /*Espera filho terminar*/
+       pthread_join(threads[ind_thread], NULL);
+       /*Retorna indice para a pilha*/
+       pthread_mutex_lock(&trava);
+       threads_disponiveis[n_threads_disponiveis] = ind_thread;
+       n_threads_disponiveis++;
+       pthread_mutex_unlock(&trava);
+     }
 }
 
 int main() {
@@ -137,13 +132,12 @@ int main() {
     numero[tam++] = aux;
   
   /*Cria argumento para passar para o quicksort*/  
-  argumento *args = malloc(sizeof(argumento));
-  args->ini = 0;
-  args->fim = tam - 1;
+  argumento args;
+  args.ini = 0;
+  args.fim = tam - 1;
   
-  quicksort(args);
+  quicksort(&args);
   
-  free(args);
   
   for(i = 0; i < tam; i++)
       printf("%d%c", numero[i], " \n"[i == tam - 1]);
